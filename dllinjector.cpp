@@ -74,35 +74,11 @@ int main()
 		exit(-1);
 	}
 	WaitForSingleObject(tread, INFINITE);
+
+	std::cout << "[+] Successfully injected & executed DLL with some cleaning up!";
 	
 	VirtualFreeEx(proc, allocation, pathsize, MEM_RELEASE);
 	CloseHandle(tread);
 	CloseHandle(proc);
 	
-	std::cout << "[+] Successfully injected & executed DLL with some cleaning up!";
 }
-
-
-/*
-void enumeration()
-{
-	PROCESSENTRY32 pe;
-	HANDLE snap = CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0);
-	pe.dwSize = sizeof(PROCESSENTRY32);
-	if(snap == INVALID_HANDLE_VALUE)
-	{
-		exit(-1);
-	}
-	bool check = Process32First(snap, &pe);
-	if(!check)
-	{
-		CloseHandle(snap);
-	}
-	while(check)
-	{
-		std::cout << pe.szExeFile << "\n";
-		check = Process32Next(snap, &pe);
-	}
-	CloseHandle(snap);
-}
-*/
