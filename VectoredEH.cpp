@@ -3,9 +3,11 @@
 
 LONG WINAPI Exceptioner(_EXCEPTION_POINTERS *ExceptionInfo)
 {
-	//std::cout << "[-] exception caught";
 	MessageBox(0,"Insert", "Shellcode here kitty cat", MB_OK);
-	exit(-1);
+	// After executing payload might have it redirect the
+	// Rip to its original state to prevent the program from
+	// actually crashing because that looks kinda sketchy
+	return 1;
 }
 
 bool __stdcall DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved)
@@ -15,11 +17,10 @@ bool __stdcall DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved)
 		case DLL_PROCESS_ATTACH:
 		{
 			AddVectoredExceptionHandler(1, Exceptioner);
-			MessageBox(NULL, "[+]", "Injected DLL", MB_OK | MB_ICONINFORMATION);
+			break;
 		}
 		case DLL_PROCESS_DETACH:
 		{
-			MessageBox(NULL, "[!] Dead bird detected!", "I<3Futanari", MB_OK | MB_ICONINFORMATION);
 			break;
 		}
 	}
